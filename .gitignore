@@ -1,0 +1,12 @@
+# Environment Variables
+.env
+.env.local
+.env.development
+.env.staging
+.env.test
+*/.env
+*/.env.local
+*/.env.development
+*/.env.staging
+*/.env.test
+
