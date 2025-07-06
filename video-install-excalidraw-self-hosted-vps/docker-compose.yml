@@ -1,0 +1,18 @@
+services:
+  excalidraw:
+    image: excalidraw/excalidraw:latest
+    environment:
+      NODE_ENV: development
+      LOG_LEVEL: debug
+    ports:
+      - "5000:80"
+    restart: unless-stopped
+    stdin_open: true
+    healthcheck:
+      disable: true
+    volumes:
+      - ./:/opt/node_app/app:delegated
+      - ./package.json:/opt/node_app/package.json
+      - ./yarn.lock:/opt/node_app/yarn.lock
+      - ./notused:/opt/node_app/node_modules
+
