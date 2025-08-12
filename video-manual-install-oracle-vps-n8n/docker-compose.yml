@@ -23,6 +23,7 @@ services:
       N8N_SMTP_PASS: ${N8N_SMTP_PASS:-pass}
       N8N_SMTP_SENDER: ${N8N_SMTP_SENDER:-any}
       N8N_SMTP_SSL: true
+      DOCKER_HOST: tcp://dockerproxy:2375
     depends_on:
       postgres:
         condition: service_started
@@ -30,11 +31,13 @@ services:
         condition: service_started
     volumes:
       - n8n_data:/home/node/.n8n
+      - /data/videos:/downloads
     restart: unless-stopped
     ports:
       - "${N8N_PORT:-5678}:5678"
     networks:
       - n8n-network
+      - n8n-shared-network
 
   postgres:
     image: postgres:latest
@@ -82,4 +85,5 @@ volumes:
 
 networks:
   n8n-network: {}
-
+  n8n-shared-network:
+    external: true
