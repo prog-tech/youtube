@@ -1,0 +1,369 @@
+{
+  "name": "Download Single Videos from S3 and Upload FFMPEG Generated Video",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -656,
+        -80
+      ],
+      "id": "953d65ac-ef80-4580-a329-e28bd939ca59",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"bucketName\": \"videos\",\n  \"workflowExecutionId\": \"execution{{ $execution.id }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -432,
+        -80
+      ],
+      "id": "f24cd239-31ba-4a23-adcc-bd47033223cd",
+      "name": "Initial Configs"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "bucketName": "={{ $json.bucketName }}",
+        "returnAll": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        -208,
+        -80
+      ],
+      "id": "5aef49a4-eb8b-4984-951a-14bce415db35",
+      "name": "Get many files",
+      "credentials": {
+      }
+    },
+    {
+      "parameters": {
+        "bucketName": "={{ $('Initial Configs').item.json.bucketName }}",
+        "fileKey": "={{ $json.Key }}"
+      },
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        16,
+        -80
+      ],
+      "id": "69b382f2-8480-46da-8dda-a48345983d19",
+      "name": "Download a file",
+      "credentials": {
+      }
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "=videos",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        464,
+        -80
+      ],
+      "id": "96380519-23ca-4ce7-bef7-c30a635ef6e8",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "jsCode": "const vids = ($input.first().json.videos || []).filter(video => typeof(video.Key) == 'string' && video.Key.toLowerCase().endsWith('.mp4')).sort((a,b) => a.Key.localeCompare(b.Key, undefined, {numeric: true, sensitivity: 'base'}));\n\nif(!vids.length) throw new Error('No mp4 videos found');\n\nconst lines = vids.map(video => `file '/work/${video.Key.replace(/'/g, `'\\\\''`)}'`).join('\\n');\n\nreturn [{\n  concatTxt: lines,\n  concatB64: Buffer.from(lines, 'utf-8').toString('base64'),\n  count: vids.length\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        -80
+      ],
+      "id": "5bac6b60-8b6c-4afc-bbbf-eec5a92a2be9",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "command": "=echo \"{{ $json.concatB64 }}\" | base64 -d > /downloads/concat.txt && wc -l /downloads/concat.txt"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        880,
+        -80
+      ],
+      "id": "5710859f-9563-45f5-b33e-8df4b54cf3b4",
+      "name": "Execute Command"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://dockerproxy:2375/containers/create?name=ffmpeg-concat-{{ $('Initial Configs').item.json.workflowExecutionId }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"Image\": \"jrottenberg/ffmpeg:latest\",\n  \"WorkingDir\": \"/work\",\n  \"Cmd\": [\n    \"-y\",\n    \"-hide_banner\",\"-loglevel\",\"info\",\n    \"-f\",\"concat\",\"-safe\",\"0\",\n    \"-i\",\"/work/concat.txt\",\n    \"-c:v\",\"libx264\",\"-preset\",\"veryfast\",\"-crf\",\"22\",\n    \"-c:a\",\"aac\",\n    \"-movflags\",\"+faststart\",\n    \"/work/output.mp4\"\n  ],\n  \"HostConfig\": {\n    \"Binds\": [\"/data/videos:/work:rw\"],\n    \"AutoRemove\": true\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -576,
+        144
+      ],
+      "id": "6adf8f67-d2d8-4e16-94db-19b4cf9beb9d",
+      "name": "Docker Create FFMPEG Container"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://dockerproxy:2375/containers/{{ $json.Id }}/start",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -336,
+        144
+      ],
+      "id": "429892f6-2e48-4e3e-bd21-0f9ec8f2de05",
+      "name": "Docker Start FFMPEG Container"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://dockerproxy:2375/containers/{{ $('Docker Create FFMPEG Container').item.json.Id }}/wait",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -112,
+        144
+      ],
+      "id": "e8784774-4d2e-4fdf-838d-38c90ad31f0e",
+      "name": "Docker Wait FFMPEG Execution"
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "={{ $('Initial Configs').item.json.bucketName }}",
+        "fileName": "output.mp4",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        352,
+        144
+      ],
+      "id": "5cd16541-2861-4310-862d-4ab1267c0244",
+      "name": "Upload a file",
+      "credentials": {
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        576,
+        144
+      ],
+      "id": "1562fc6a-f267-4fa7-9253-ed4dfe6b03f6",
+      "name": "Finish Workflow"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/downloads/{{ $json.Key }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        240,
+        -80
+      ],
+      "id": "662f468f-5bd9-4cbe-a0ec-6b6e5ddb75e7",
+      "name": "Write Video Files from S3"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/downloads/output.mp4",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        112,
+        144
+      ],
+      "id": "7f926abe-185e-4fbb-81dc-d8b16ae67baf",
+      "name": "Read output data from Disk"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Initial Configs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initial Configs": {
+      "main": [
+        [
+          {
+            "node": "Get many files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many files": {
+      "main": [
+        [
+          {
+            "node": "Download a file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download a file": {
+      "main": [
+        [
+          {
+            "node": "Write Video Files from S3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Execute Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command": {
+      "main": [
+        [
+          {
+            "node": "Docker Create FFMPEG Container",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Docker Create FFMPEG Container": {
+      "main": [
+        [
+          {
+            "node": "Docker Start FFMPEG Container",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Docker Start FFMPEG Container": {
+      "main": [
+        [
+          {
+            "node": "Docker Wait FFMPEG Execution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Docker Wait FFMPEG Execution": {
+      "main": [
+        [
+          {
+            "node": "Read output data from Disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload a file": {
+      "main": [
+        [
+          {
+            "node": "Finish Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Video Files from S3": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read output data from Disk": {
+      "main": [
+        [
+          {
+            "node": "Upload a file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "33fffc18-6082-40d5-a9fa-631d7501c6fe",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "8b4d71b7f6ca92b3a387142d095f70a29dd52b3543d4fd9a2b20565cc942a676"
+  },
+  "id": "Xj29IU8PWlrFCrkk",
+  "tags": []
+}
