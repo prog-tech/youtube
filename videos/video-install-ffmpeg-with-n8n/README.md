@@ -2,6 +2,10 @@
 
 Para a utilização do `ffmpeg` dentro do N8N que está instalado via Docker, é necessário seguir os seguintes passos para conseguir executar comandos docker através do container que o N8N estiver executando também.
 
+## YouTube Video
+
+[![Youtube Video](https://img.youtube.com/vi/v2g2V4AjAt8/0.jpg)](https://www.youtube.com/watch?v=v2g2V4AjAt8)
+
 ## Passos
 
 ### Passo 1
