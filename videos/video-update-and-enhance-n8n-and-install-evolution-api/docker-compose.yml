@@ -1,0 +1,208 @@
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    command: ["start"]
+    environment:
+      DB_POSTGRESDB_DATABASE: n8n
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD:-default}
+      DB_POSTGRESDB_PORT: ${POSTGRES_PORT:-5432}
+      DB_POSTGRESDB_POOL_SIZE: 10
+      DB_POSTGRESDB_USER: ${POSTGRES_USER:-default}
+      DB_TYPE: postgresdb
+      DOCKER_HOST: tcp://dockerproxy:2375
+      QUEUE_BULL_REDIS_HOST: redis
+      QUEUE_BULL_REDIS_USERNAME: ${REDIS_USERNAME:-default}
+      QUEUE_BULL_REDIS_PASSWORD: ${REDIS_PASSWORD:-default}
+      QUEUE_BULL_REDIS_PORT: ${REDIS_PORT:-6379}
+      QUEUE_BULL_PREFIX: n8n_queue
+      EXECUTIONS_MODE: queue
+      EXECUTIONS_DATA_MAX_AGE: ${EXECUTIONS_DATA_MAX_AGE:-720}
+      EXECUTIONS_DATA_PRUNE: true
+      GENERIC_TIMEZONE: ${N8N_GENERIC_TIMEZONE:-America/Sao_Paulo}
+      N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE: true
+      N8N_DIAGNOSTICS_ENABLE: false
+      N8N_EDITOR_BASE_URL: ${N8N_EDITOR_BASE_URL}
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: true
+      N8N_EMAIL_MODE: smtp
+      N8N_HOST: ${N8N_EDITOR_HOST}
+      N8N_PROTOCOL: https
+      N8N_LOG_LEVEL: ${N8N_LOG_LEVEL:-debug}
+      N8N_LOG_OUTPUT: file,console
+      N8N_LOG_FILE_LOCATION: ${N8N_LOG_FILE_LOCATION}
+      N8N_SKIP_WEBHOOK_DEREGISTRATION_SHUTDOWN: true
+      N8N_SECURE_COOKIE: false
+      N8N_SMTP_HOST: ${N8N_SMTP_HOST:-any}
+      N8N_SMTP_PORT: ${N8N_SMTP_PORT:-465}
+      N8N_SMTP_USER: ${N8N_SMTP_USER:-apikey}
+      N8N_SMTP_PASS: ${N8N_SMTP_PASS:-pass}
+      N8N_SMTP_SENDER: ${N8N_SMTP_SENDER:-any}
+      N8N_SMTP_SSL: true
+      NODE_ENV: ${NODE_ENV:-production}
+      NODE_FUNCTION_ALLOW_EXTERNAL: moment,lodash,moment-with-locales
+      TZ: ${N8N_GENERIC_TIMEZONE:-America/Sao_Paulo}
+      WEBHOOK_URL: ${N8N_WEBHOOK_URL}
+    depends_on:
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - /data/videos:/downloads
+    restart: unless-stopped
+    ports:
+      - "${N8N_EDITOR_PORT:-5678}:5678"
+    networks:
+      - n8n-network
+      - n8n-shared-network
+  
+  n8n_webhooks:
+    image: n8nio/n8n:latest
+    command: ["webhook"]
+    environment:
+      DB_POSTGRESDB_DATABASE: n8n
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD:-default}
+      DB_POSTGRESDB_PORT: ${POSTGRES_PORT:-5432}
+      DB_POSTGRESDB_POOL_SIZE: 10
+      DB_POSTGRESDB_USER: ${POSTGRES_USER:-default}
+      DB_TYPE: postgresdb
+      DOCKER_HOST: tcp://dockerproxy:2375
+      QUEUE_BULL_REDIS_HOST: redis
+      QUEUE_BULL_REDIS_USERNAME: ${REDIS_USERNAME:-default}
+      QUEUE_BULL_REDIS_PASSWORD: ${REDIS_PASSWORD:-default}
+      QUEUE_BULL_REDIS_PORT: ${REDIS_PORT:-6379}
+      QUEUE_BULL_PREFIX: n8n_queue
+      EXECUTIONS_MODE: queue
+      EXECUTIONS_DATA_MAX_AGE: ${EXECUTIONS_DATA_MAX_AGE:-720}
+      EXECUTIONS_DATA_PRUNE: true
+      GENERIC_TIMEZONE: ${N8N_GENERIC_TIMEZONE:-America/Sao_Paulo}
+      N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE: true
+      N8N_DIAGNOSTICS_ENABLE: false
+      N8N_EDITOR_BASE_URL: ${N8N_EDITOR_BASE_URL}
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: true
+      N8N_EMAIL_MODE: smtp
+      N8N_HOST: ${N8N_EDITOR_HOST}
+      N8N_PROTOCOL: https
+      N8N_LOG_LEVEL: ${N8N_LOG_LEVEL:-debug}
+      N8N_LOG_OUTPUT: file,console
+      N8N_LOG_FILE_LOCATION: ${N8N_LOG_FILE_LOCATION_WEBHOOKS}
+      N8N_SECURE_COOKIE: false
+      NODE_ENV: ${NODE_ENV:-production}
+      NODE_FUNCTION_ALLOW_EXTERNAL: moment,lodash,moment-with-locales
+      TZ: ${N8N_GENERIC_TIMEZONE:-America/Sao_Paulo}
+      WEBHOOK_URL: ${N8N_WEBHOOK_URL}
+    depends_on:
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
+    volumes:
+      - n8n_data:/home/node/.n8n
+    restart: unless-stopped
+    ports:
+      - "${N8N_WEBHOOK_PORT:-5679}:5678"
+    networks:
+      - n8n-network
+      - n8n-shared-network
+
+  n8n_workers:
+    image: n8nio/n8n:latest
+    command: ["worker", "--concurrency=5"]
+    environment:
+      DB_POSTGRESDB_DATABASE: n8n
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD:-default}
+      DB_POSTGRESDB_PORT: ${POSTGRES_PORT:-5432}
+      DB_POSTGRESDB_POOL_SIZE: 10
+      DB_POSTGRESDB_USER: ${POSTGRES_USER:-default}
+      DB_TYPE: postgresdb
+      DOCKER_HOST: tcp://dockerproxy:2375
+      QUEUE_BULL_REDIS_HOST: redis
+      QUEUE_BULL_REDIS_USERNAME: ${REDIS_USERNAME:-default}
+      QUEUE_BULL_REDIS_PASSWORD: ${REDIS_PASSWORD:-default}
+      QUEUE_BULL_REDIS_PORT: ${REDIS_PORT:-6379}
+      QUEUE_BULL_PREFIX: n8n_queue
+      EXECUTIONS_MODE: queue
+      EXECUTIONS_DATA_MAX_AGE: ${EXECUTIONS_DATA_MAX_AGE:-720}
+      EXECUTIONS_DATA_PRUNE: true
+      GENERIC_TIMEZONE: ${N8N_GENERIC_TIMEZONE:-America/Sao_Paulo}
+      N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE: true
+      N8N_DIAGNOSTICS_ENABLE: false
+      N8N_EDITOR_BASE_URL: ${N8N_EDITOR_BASE_URL}
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: true
+      N8N_EMAIL_MODE: smtp
+      N8N_HOST: ${N8N_EDITOR_HOST}
+      N8N_PROTOCOL: https
+      N8N_LOG_LEVEL: ${N8N_LOG_LEVEL:-debug}
+      N8N_LOG_OUTPUT: file,console
+      N8N_LOG_FILE_LOCATION: ${N8N_LOG_FILE_LOCATION_WORKERS}
+      N8N_SECURE_COOKIE: false
+      NODE_ENV: ${NODE_ENV:-production}
+      NODE_FUNCTION_ALLOW_EXTERNAL: moment,lodash,moment-with-locales
+      TZ: ${N8N_GENERIC_TIMEZONE:-America/Sao_Paulo}
+      WEBHOOK_URL: ${N8N_WEBHOOK_URL}
+    depends_on:
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
+    volumes:
+      - n8n_data:/home/node/.n8n
+    restart: unless-stopped
+    networks:
+      - n8n-network
+      - n8n-shared-network
+
+  postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: default
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-default}
+      POSTGRES_DB: ${POSTGRES_DB:-default}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    networks:
+      - n8n-network
+
+  redis:
+    image: redis:latest
+    command: redis-server --requirepass default
+    environment:
+      REDIS_USER: default
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-default}
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - n8n-network
+
+  pgadmin4:
+    image: dpage/pgadmin4:latest
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_started
+    volumes:
+      - pgadmin4_data:/var/lib/pgadmin
+    restart: unless-stopped
+    ports:
+      - "${PGADMIN_PORT:-8080}:80"
+    networks:
+      - n8n-network
+
+volumes:
+  n8n_data:
+  pg_data:
+  pgadmin4_data:
+
+networks:
+  n8n-network: {}
+  n8n-shared-network:
+    external: true
