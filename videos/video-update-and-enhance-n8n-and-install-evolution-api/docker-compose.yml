@@ -168,6 +168,7 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     networks:
       - n8n-network
+      - n8n-shared-network
 
   redis:
     image: redis:latest
